@@ -20,6 +20,16 @@ def setup_seed(seed):
     torch.backends.cudnn.deterministic = True
 
 
+def Z_score(X, intrvl):
+    """Perform scaling based on pre-stimulus baseline"""
+    X0 = X[:, :, :intrvl]
+    X0 = X0.reshape([X.shape[0], -1])
+    X -= X0.mean(-1)[:, None, None]
+    X /= X0.std(-1)[:, None, None]
+    X = X[:, :, intrvl:]
+    return X
+
+
 # 更新混淆矩阵
 def confusion_matrix(preds, labels, conf_matrix):
     for p, t in zip(preds, labels):
@@ -31,13 +41,14 @@ def train(model, device, train_loader, optimizer, epoch, classes=4):
     # 创建一个空矩阵存储混淆矩阵
     conf_matrix = torch.zeros(classes, classes)
     model.train()
-    loss = 0
+    train_loss = 0
     correct = 0
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
         loss = criterion(output, target)
+        train_loss += loss.item()
         loss.backward()
         optimizer.step()
         pred = output.max(1, keepdim=True)[1]  # 找到概率最大的下标
@@ -48,11 +59,11 @@ def train(model, device, train_loader, optimizer, epoch, classes=4):
                        100. * batch_idx / len(train_loader), loss.item()))
         conf_matrix = confusion_matrix(pred, labels=target, conf_matrix=conf_matrix)
     accuracy = 100. * correct / len(train_loader.dataset)
-    loss /= len(train_loader.dataset)
+    train_loss /= len(train_loader.dataset)
     print('Training Dataset\tEpoch：{}\tAccuracy: [{}/{} ({:.6f}%)]\tAverage Loss: {:.6f}'.format(
         epoch, correct, len(train_loader.dataset), 1. * correct / len(train_loader.dataset), loss))
     # print(conf_matrix)
-    return accuracy, loss, conf_matrix
+    return accuracy, train_loss, conf_matrix
 
 
 def test(model, device, test_loader, classes=4):

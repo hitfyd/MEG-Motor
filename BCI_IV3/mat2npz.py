@@ -1,20 +1,12 @@
 import numpy as np
 import scipy.io as scio
 
+import util
+
 S1_data_path = "D:/BCI Competition IV Datasets 3/S1.mat"
 S1_label_path = "D:/BCI Competition IV Datasets 3/TrueLabelsS1.mat"
 S2_data_path = "D:/BCI Competition IV Datasets 3/S2.mat"
 S2_label_path = "D:/BCI Competition IV Datasets 3/TrueLabelsS2.mat"
-
-
-def scale_type(X, intrvl):
-    """Perform scaling based on pre-stimulus baseline"""
-    X0 = X[:, :, :intrvl]
-    X0 = X0.reshape([X.shape[0], -1])
-    X -= X0.mean(-1)[:, None, None]
-    X /= X0.std(-1)[:, None, None]
-    # X = X[:, :, intrvl:]
-    return X
 
 
 def mat2npy(subject):
@@ -56,8 +48,8 @@ def mat2npy(subject):
     test_data = test_data.transpose([0, 2, 1])  # 转换维度，与HCP数据集一致
     test_labels = test_labels.astype(np.longlong)
 
-    data = scale_type(data, 160)
-    test_data = scale_type(test_data, 160)
+    data = util.Z_score(data, 160)
+    test_data = util.Z_score(test_data, 160)
 
     np.savez(str(subject) + ".npz", train_data=data, train_labels=labels, test_data=test_data, test_labels=test_labels)
 

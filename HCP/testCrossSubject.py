@@ -7,16 +7,12 @@ import CNN
 import util
 
 # 设置随机数种子
-util.setup_seed(600)
+util.setup_seed(1000)
 
 BATCH_SIZE = 1024
 EPOCHS = 2000  # 总共训练批次
 
 model = CNN.CNN(channels=248, points=203, classes=4, spatial_sources=128)
-
-# 读取原始训练数据
-# npz = np.load("D:/HCP_epochs/105923_session11.npz")
-# data, labels = npz['data'], npz['labels']
 
 data_path = 'D:/HCP_epochs/'
 npzFiles = glob(data_path+'*10.npz')[:20]
