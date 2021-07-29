@@ -79,3 +79,7 @@ class CNN(nn.Module):
         # print(x.shape, x)
         x = F.log_softmax(x, dim=1)  # 计算log(softmax(x))
         return x
+
+    def get_model_info(self):
+        return [self.__class__.__name__, self.channels, self.times, self.classes,
+                self.spatial_sources, self.pool_factor, self.dropout_factor, self.active_func]

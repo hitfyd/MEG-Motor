@@ -9,6 +9,7 @@ import torch.optim as optim
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # 让torch判断是否使用GPU，建议使用GPU环境，因为会快很多
 criterion = nn.CrossEntropyLoss()
 global_seed = -1
+global_data_subjects = -1
 
 def setup_seed(seed):
     global global_seed
@@ -18,6 +19,11 @@ def setup_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
     torch.backends.cudnn.deterministic = True
+
+
+def set_subjects_info(subjects):
+    global global_data_subjects
+    global_data_subjects = subjects
 
 
 def Z_score(X, intrvl):
@@ -54,13 +60,13 @@ def train(model, device, train_loader, optimizer, epoch, classes=4):
         pred = output.max(1, keepdim=True)[1]  # 找到概率最大的下标
         correct += pred.eq(target.view_as(pred)).sum().item()
         if (batch_idx + 1) % 5 == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('Train Epoch: {} [{}/{} ({:.0f})]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
-                       100. * batch_idx / len(train_loader), loss.item()))
+                       1. * batch_idx / len(train_loader), loss.item()))
         conf_matrix = confusion_matrix(pred, labels=target, conf_matrix=conf_matrix)
     accuracy = 100. * correct / len(train_loader.dataset)
     train_loss /= len(train_loader.dataset)
-    print('Training Dataset\tEpoch：{}\tAccuracy: [{}/{} ({:.6f}%)]\tAverage Loss: {:.6f}'.format(
+    print('Training Dataset\tEpoch：{}\tAccuracy: [{}/{} ({:.6f})]\tAverage Loss: {:.6f}'.format(
         epoch, correct, len(train_loader.dataset), 1. * correct / len(train_loader.dataset), loss))
     # print(conf_matrix)
     return accuracy, train_loss, conf_matrix
@@ -95,12 +101,15 @@ def weight_reset(m):
         m.reset_parameters()
 
 
-def run(model, train_data, train_labels, test_data, test_labels, batch_size=256, epochs=200, classes=4):
+def run(model, train_data, train_labels, test_data, test_labels, batch_size=256, epochs=200, classes=4, optimizer_type='ASGD', learn_rate=3e-3):
     model.to(DEVICE)
 
-    # optimizer = optim.Adam(model.parameters(), lr=3e-5, amsgrad=True)
-    optimizer = optim.ASGD(model.parameters(), lr=3e-3)
-    # optimizer = optim.SGD(model.parameters(), lr=3e-3)
+    if optimizer_type == 'Adam':
+        optimizer = optim.Adam(model.parameters(), lr=learn_rate, amsgrad=True)
+    elif optimizer_type == 'ASGD':
+        optimizer = optim.ASGD(model.parameters(), lr=learn_rate)
+    else:
+        optimizer = optim.SGD(model.parameters(), lr=learn_rate)
 
     # 训练集
     train_data = torch.from_numpy(train_data)
@@ -144,8 +153,10 @@ def run(model, train_data, train_labels, test_data, test_labels, batch_size=256,
     record_file = "record/{}_record.txt".format(current_time)
     with open(record_file, "a+") as f:
         f.write('seed: {}\n'.format(global_seed))
+        f.write('data subjects: {}\n'.format(global_data_subjects))
         f.write('batch_size: {}\n'.format(batch_size))
         f.write('train_epochs: {}\n'.format(epochs))
+        f.write('model setup: {}\n'.format(model.get_model_info()))
         f.write('optimizer: {}\n'.format(optimizer))
         f.write('best_accuracy: {:.6f}%\n'.format(best_test_accuracy))
         f.write('best_test_conf_matrix: {}\n'.format(best_test_conf_matrix.data))

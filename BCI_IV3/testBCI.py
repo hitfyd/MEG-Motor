@@ -11,9 +11,10 @@ util.setup_seed(1000)
 BATCH_SIZE = 64
 EPOCHS = 2000  # 总共训练批次
 # BCI数据集subjects包括1、2，推荐使用subject1
-subject = 1
+subject = 2
+util.set_subjects_info(subject)
 
-model = CNN.CNN(channels=10, points=240, classes=4, spatial_sources=32)
+model = CNN.CNN(channels=10, points=240, classes=4, spatial_sources=32, dropout_factor=0.75)
 
 # 读取原始训练数据
 npz = np.load(str(subject) + ".npz")
