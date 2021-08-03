@@ -40,7 +40,7 @@ def mat2npy(subject):
     for j in range(test_data.shape[0]):
         test_labels[j] -= 1  # 将标签从1、2、3、4调整为0、1、2、3
 
-    # 数据类型转换到float32，与torch默认类型一致
+    # 转换数据类型与torch默认类型一致
     data = np.array(data, dtype=np.float32)
     data = data.transpose([0, 2, 1])  # 转换维度，与HCP数据集一致
     labels = np.array(labels, dtype=np.longlong)
@@ -48,8 +48,8 @@ def mat2npy(subject):
     test_data = test_data.transpose([0, 2, 1])  # 转换维度，与HCP数据集一致
     test_labels = test_labels.astype(np.longlong)
 
-    data = util.Z_score(data, 160)
-    test_data = util.Z_score(test_data, 160)
+    data = util.z_score_standardization(data, 160)
+    test_data = util.z_score_standardization(test_data, 160)
 
     np.savez(str(subject) + ".npz", train_data=data, train_labels=labels, test_data=test_data, test_labels=test_labels)
 

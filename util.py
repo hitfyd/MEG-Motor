@@ -1,3 +1,4 @@
+import os
 import time
 import random
 
@@ -11,6 +12,8 @@ criterion = nn.CrossEntropyLoss()
 global_seed = -1
 global_data_subjects = -1
 
+
+# 设置全局随机数种子，同时用于记录实验数据
 def setup_seed(seed):
     global global_seed
     global_seed = seed
@@ -21,19 +24,20 @@ def setup_seed(seed):
     torch.backends.cudnn.deterministic = True
 
 
+# 设置受试者信息，用于记录实验数据
 def set_subjects_info(subjects):
     global global_data_subjects
     global_data_subjects = subjects
 
 
-def Z_score(X, intrvl):
-    """Perform scaling based on pre-stimulus baseline"""
-    X0 = X[:, :, :intrvl]
-    X0 = X0.reshape([X.shape[0], -1])
-    X -= X0.mean(-1)[:, None, None]
-    X /= X0.std(-1)[:, None, None]
-    X = X[:, :, intrvl:]
-    return X
+# Z-score标准化，执行完成后删除基线数据，即事件开始前的数据
+def z_score_standardization(epochs, baseline_scale):
+    baseline = epochs[:, :, :baseline_scale]
+    baseline = baseline.reshape([epochs.shape[0], -1])
+    epochs -= baseline.mean(-1)[:, None, None]
+    epochs /= baseline.std(-1)[:, None, None]
+    epochs = epochs[:, :, baseline_scale:]
+    return epochs
 
 
 # 更新混淆矩阵
@@ -96,14 +100,17 @@ def test(model, device, test_loader, classes=4):
     return test_accuracy, test_loss, conf_matrix
 
 
+# 重置权重，用于多次训练模型时
 def weight_reset(m):
     if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
         m.reset_parameters()
 
 
-def run(model, train_data, train_labels, test_data, test_labels, batch_size=256, epochs=200, classes=4, optimizer_type='ASGD', learn_rate=3e-3):
+def run(model, train_data, train_labels, test_data, test_labels,
+        batch_size=256, epochs=200, classes=4, optimizer_type='ASGD', learn_rate=3e-3):
     model.to(DEVICE)
 
+    # 设置优化器和学习率
     if optimizer_type == 'Adam':
         optimizer = optim.Adam(model.parameters(), lr=learn_rate, amsgrad=True)
     elif optimizer_type == 'ASGD':
@@ -134,6 +141,7 @@ def run(model, train_data, train_labels, test_data, test_labels, batch_size=256,
         train_accuracy, train_loss, train_conf_matrix = train(model, DEVICE, train_loader, optimizer, epoch, classes)
         test_accuracy, test_loss, test_conf_matrix = test(model, DEVICE, test_loader, classes)
 
+        # 更新最佳测试结果，记录测试精度、混淆矩阵和当前模型参数
         if test_accuracy >= best_test_accuracy:
             best_test_accuracy = test_accuracy
             best_test_conf_matrix = test_conf_matrix
@@ -148,9 +156,12 @@ def run(model, train_data, train_labels, test_data, test_labels, batch_size=256,
           [(i, test_loss_list[i]) for i, x in enumerate(test_accuracy_list) if x == max(test_accuracy_list)],
           min(test_loss_list), [i for i, x in enumerate(test_loss_list) if x == min(test_loss_list)])
 
+    # 记录实验数据
     current_time = time.strftime("%Y%m%d%H%M%S")
     torch.save(best_state_dict, 'record/{}_checkpoint.pt'.format(current_time))
     record_file = "record/{}_record.txt".format(current_time)
+    # 确保记录目录存在
+    os.makedirs(os.path.dirname(record_file), exist_ok=True)
     with open(record_file, "a+") as f:
         f.write('seed: {}\n'.format(global_seed))
         f.write('data subjects: {}\n'.format(global_data_subjects))
